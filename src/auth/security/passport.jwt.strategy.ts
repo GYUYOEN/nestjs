@@ -8,12 +8,12 @@ import { Payload } from "./payload.interface";
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
     constructor(
-        private authService: AuthService
+        private authService: AuthService,
     ) {
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration: true,
-            secretOrKey: 'SECRET_KEY'
+            secretOrKey: process.env.JWT_ACCESS_SECRET
         })
     }
 

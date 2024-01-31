@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-
 import * as nodemailer from 'nodemailer';
 
 import Mail from 'nodemailer/lib/mailer';
@@ -17,9 +16,10 @@ export class EmailService {
     constructor() {
         this.transporter = nodemailer.createTransport({
             service: 'Gmail',
+            secure: true,
             auth: {
-                user: 'rbdus9696@gmail.com',
-                pass: '',
+                user: '발신 이메일',
+                pass: '앱 비밀번호',
             },
         });
     }

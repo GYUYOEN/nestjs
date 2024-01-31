@@ -6,15 +6,17 @@ import * as bcrypt from 'bcrypt';
 
 import { User } from "./entity/user.entity";
 import { UserDTO } from "./dto/user.dto";
+import { ConfigService } from "@nestjs/config";
 
 @Injectable()
 export class UserService {
     constructor(
         @InjectRepository(User)
         private userRepository: Repository<User>,
+        private configService: ConfigService,
     ) {}
 
-    // 이미 사용자가 등록이 됐는지 안됐는지 확인하기 위한 조회
+    // 회원 조회
     async findByFields(options: FindOneOptions<User>): Promise<User | undefined> {
         return await this.userRepository.findOne(options);
     }
@@ -60,4 +62,59 @@ export class UserService {
         );
         return Promise.resolve();
     }
+
+    // refresh-token db에 저장
+    async setCurrentRefreshToken(refreshToken: string, userId: number) {
+        const currentRefreshToken = await this.getCurrentHashedRefreshToken(refreshToken);
+        const currentRefreshTokenExp = await this.getCurrentRefreshTokenExp();
+        await this.userRepository.update(userId, {
+            currentRefreshToken: currentRefreshToken,
+            currentRefreshTokenExp: currentRefreshTokenExp,
+        });
+    }
+
+    // refresh-token 발급
+    async getCurrentHashedRefreshToken(refreshToken: string) {
+        const saltOrRounds = 10;
+        const currentRefreshToken = await bcrypt.hash(refreshToken, saltOrRounds);
+        return currentRefreshToken;
+    }
+
+    // refresh-token 발급 날짜
+    async getCurrentRefreshTokenExp(): Promise<Date> {
+        const currentDate = new Date();
+        const currentRefreshTokenExp = new Date(currentDate.getTime() + parseInt(this.configService.get<string>('JWT_REFRESH_EXPIRATION_TIME')));
+        return currentRefreshTokenExp;
+    }
+
+    // refresh-token 일치 여부
+    async getUserIfRefreshTokenMatches(refreshToken: string, userId: number): Promise<User> {
+        const id = userId;
+        const user: User = await this.userRepository.findOne({
+            where: { id }
+        });
+    
+        if (!user.currentRefreshToken) {
+          return null;
+        }
+        
+        const isRefreshTokenMatching = await bcrypt.compare(
+          refreshToken,
+          user.currentRefreshToken
+        );
+    
+        if (isRefreshTokenMatching) {
+          return user;
+        } 
+      }
+
+      // refresh-token db에서 삭제
+      async removeRefreshToken(userId: number): Promise<any> {
+        return await this.userRepository.update(userId, {
+          currentRefreshToken: null,
+          currentRefreshTokenExp: null,
+        });
+      }
+    
+
 } 
